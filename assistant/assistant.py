@@ -13,12 +13,12 @@ from asset_manager import AssetManager
 import config_manager
 import language_manager as lang
 
-from skills import information, audio, system, communication, interactions, time_signal, timer
+from skills import information, audio, system, communication, interactions, time_signal, timer, youtube_gui, custom_manager
 from skills.teamtalk_manager import manager as teamtalk_manager
 
 class Assistant:
     def __init__(self):
-        print("Initializing Assistant...")
+        print("Initializing Dora Assistant - The Bluebird Project...")
         pygame.init()
         pygame.mixer.init()
         self.settings = config_manager.load_settings()
@@ -79,8 +79,24 @@ class Assistant:
                 'stop the timer': timer.stop_timer,
                 'stop the alarm': timer.stop_timer,
                 '/stop-timer': timer.stop_timer,
+                'play youtube': youtube_gui.play_youtube_video,
+                '/play-youtube': youtube_gui.play_youtube_video,
+                'add note': custom_manager.add_note,
+                '/add-note': custom_manager.add_note,
+                'list notes': custom_manager.list_notes,
+                '/list-notes': custom_manager.list_notes,
+                'delete notes': custom_manager.delete_notes,
+                '/delete-notes': custom_manager.delete_notes,
+                'open the userinterface': self.open_ui,
+                '/open-ui': self.open_ui,
             }
         }
+
+    def open_ui(self, command=None):
+        import gui_main
+        threading.Thread(target=gui_main.launch_ui, args=(self,), daemon=True).start()
+        self.speak("Opening the user interface.")
+
 
     def list_commands(self, command=None):
         print("Listing available commands...")
@@ -149,6 +165,13 @@ class Assistant:
             
     def process_command(self, command):
         if not command: return
+        
+        # Check custom commands first
+        cmds = config_manager.load_custom_commands()
+        if command.strip() in cmds:
+            custom_manager.run_custom_command(self, command)
+            return
+            
         processed_command = command.replace(" ", "")
         active_commands = self._command_map.get(self.current_lang, {})
         for keyword, func in active_commands.items():

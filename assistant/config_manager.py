@@ -1,52 +1,19 @@
-# config_manager.py
-
+# config_manager.py (updated with paths)
 import configparser
 import json
 import os
 
-# Base directory in user profile
 BASE_CONF_DIR = os.path.join(os.path.expanduser("~"), ".assistantconf")
+BASE_DATA_DIR = os.path.join(os.path.expanduser("~"), ".assistant-data")
+CUSTOM_CMDS_FILE = os.path.join(os.path.expanduser("~"), ".assistant-custom-commands.json")
 
-# Ensure the directory exists
-if not os.path.exists(BASE_CONF_DIR):
-    os.makedirs(BASE_CONF_DIR)
+# Ensure directories exist
+for d in [BASE_CONF_DIR, BASE_DATA_DIR]:
+    if not os.path.exists(d): os.makedirs(d)
 
-# Constants pointing to user profile
 CONFIG_FILE = os.path.join(BASE_CONF_DIR, 'config.ini')
 SETTINGS_FILE = os.path.join(BASE_CONF_DIR, 'settings.json')
-REMINDERS_FILE = os.path.join(BASE_CONF_DIR, 'reminders.json')
-ALARMS_FILE = os.path.join(BASE_CONF_DIR, 'alarms.json')
-
-def handle_critical_error(message):
-    """Prints an error message and waits for enter before exiting."""
-    print("\n" + "="*50)
-    print("!!! CRITICAL ERROR !!!")
-    print(message)
-    print("="*50)
-    input("\nThe program will exit. Press Enter to exit...")
-    exit()
-
-def load_ini_config():
-    """Loads the config.ini file and returns the values read from it."""
-    if not os.path.exists(CONFIG_FILE):
-        # Create an empty template if not exists
-        print(f"Configuration file '{CONFIG_FILE}' not found. Please run configure.py.")
-        return None, None
-    
-    config = configparser.ConfigParser()
-    config.read(CONFIG_FILE)
-    
-    try:
-        token = config.get('Telegram', 'token')
-        chat_id = config.get('Telegram', 'chat_id')
-        return token, chat_id
-    except configparser.NoSectionError:
-        return None, None
-    except configparser.NoOptionError:
-        return None, None
-    except Exception as e:
-        print(f"Unknown error while reading '{CONFIG_FILE}': {e}")
-        return None, None
+NOTES_FILE = os.path.join(BASE_DATA_DIR, 'notes.json')
 
 def load_settings():
     """Loads user settings (language, chatbot model, username)."""
@@ -58,22 +25,34 @@ def load_settings():
             print(f"Warning: Error while loading settings: {e}. Using default settings.")
     return {'last_lang': 'en', 'chatbot_model': 1, 'username': 'User'}
 
-def save_settings(settings_data):
-    """Saves user settings."""
-    try:
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(settings_data, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error while saving settings: {e}")
+def get_notes_pin():
+    settings = load_settings()
+    return settings.get('notes_pin', None)
 
-def load_reminders():
-    if os.path.exists(REMINDERS_FILE):
+def set_notes_pin(pin):
+    settings = load_settings()
+    settings['notes_pin'] = pin
+    save_settings(settings)
+
+
+def load_notes():
+    if os.path.exists(NOTES_FILE):
         try:
-            with open(REMINDERS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
+            with open(NOTES_FILE, 'r', encoding='utf-8') as f: return json.load(f)
         except Exception: return []
     return []
 
-def save_reminders(reminders):
-    try:
-        with open(REMINDERS_FILE, 'w', encoding='utf-8') as f: json.dump(reminders, f, ensure_ascii=False, indent=4)
-    except Exception as e: print(f"Error while saving reminders: {e}")
+def save_note(note):
+    notes = load_notes()
+    notes.append(note)
+    with open(NOTES_FILE, 'w', encoding='utf-8') as f: json.dump(notes, f, indent=4)
+
+def load_custom_commands():
+    if os.path.exists(CUSTOM_CMDS_FILE):
+        with open(CUSTOM_CMDS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
+    return {}
+
+def save_custom_command(name, cmd_info):
+    cmds = load_custom_commands()
+    cmds[name] = cmd_info
+    with open(CUSTOM_CMDS_FILE, 'w', encoding='utf-8') as f: json.dump(cmds, f, indent=4)

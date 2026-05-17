@@ -17,11 +17,11 @@ Dora is a Python-based virtual assistant designed for hands-free control and int
    ```
 
 2. **Configuration:**
-   Run the setup script:
+   Run the GUI setup tool:
    ```bash
    python assistant/configure.py
    ```
-   This will create a hidden folder in your user profile (`~/.assistantconf/`) where your settings and server configurations are stored.
+   This will open a graphical window where you can configure your settings, server configurations, and custom commands, which will be stored in your user profile (`~/.assistantconf/`).
 
 3. **Running the Assistant:**
    ```bash
@@ -39,7 +39,18 @@ You can either say these commands or type them using the `/` prefix in the termi
 - `/timer [minutes]`: Set a timer.
 - `/stop-timer`: Stop the timer or alarm.
 - `/play` / `/next` / `/stop`: Local music control.
+- `/add-note [note]`: Save a note to your user data folder.
+- `/list-notes`: Read your saved notes.
+- `/delete-notes`: Delete all saved notes.
+- `/open-ui`: Open the Dora Assistant GUI.
 - `/time`: Get the current time.
 - `/shutdown`: Shutdown the system.
+
+## Custom Commands
+You can define your own custom commands using the configuration utility:
+1. Run `python assistant/configure.py`.
+2. Select "Add Custom Command".
+3. Define the trigger name, command type (exe/shell/port), and the associated path/command.
+4. Trigger them by typing or saying the command name.
 
 *Note: For TeamTalk integration, ensure `TeamTalk5.dll` is present in the `assistant` directory.*

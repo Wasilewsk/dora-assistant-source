@@ -1,8 +1,10 @@
 # main.py
 from assistant import Assistant
 import pygame
+import updater
 
 if __name__ == "__main__":
+    updater.check_for_updates()
     dora = None
     try:
         print("Starting Dora Assistant...")
