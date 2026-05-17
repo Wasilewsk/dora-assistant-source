@@ -10,7 +10,13 @@ Dora is a Python-based virtual assistant designed for hands-free control and int
 - **Configurable:** Easy setup for multiple TeamTalk servers and notifications via Telegram.
 
 ## Setup & Configuration
-1. **Install Dependencies:**
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/wasilewsk/dora-assistant-source.git
+   cd dora-assistant-source
+   ```
+
+2. **Install Dependencies:**
    Ensure Python 3.12+ is installed, then run:
    ```bash
    pip install -r assistant/requirements.txt
