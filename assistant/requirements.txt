@@ -1,0 +1,9 @@
+pygame
+SpeechRecognition
+gTTS
+yt-dlp
+chat-downloader
+ffpyplayer
+sounddevice
+configparser
+pyperclip
