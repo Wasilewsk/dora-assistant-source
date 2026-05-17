@@ -39,7 +39,7 @@
         "switch_language_prompt": "I only speak English now.",
         "waiting_for_wake_word": "Waiting for wake word",
         "unknown_language": "I don't recognize that language.",
-        "time_signal_prompt": "Alright. How often should I announce the time? Every quarter, half, or full hour?",
+        "time_signal_prompt": "Alright. How often should I announce the time? 1, every quarter, 2, every half hour, 3, every hour.",
         "time_signal_started": "Time signal set for every {interval} minutes.",
         "time_signal_stopped": "The time signal has been stopped.",
         "time_signal_already_running": "The time signal is already active.",

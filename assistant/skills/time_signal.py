@@ -59,14 +59,14 @@ def start_time_signal(assistant, command=None):
         return
 
     assistant.speak(assistant.get_response('time_signal_prompt'))
-    response = assistant.listen()
+    response = assistant.listen().lower()
 
     interval_minutes = 0
-    if 'quarter' in response:
+    if '1' in response or 'one' in response or 'quarter' in response:
         interval_minutes = 15
-    elif 'half' in response:
+    elif '2' in response or 'two' in response or 'half' in response:
         interval_minutes = 30
-    elif 'full' in response or 'hour' in response:
+    elif '3' in response or 'three' in response or 'free' in response or 'full' in response or 'hour' in response:
         interval_minutes = 60
     
     if interval_minutes > 0:
