@@ -4,12 +4,13 @@ import configparser
 import os
 import re
 import TeamTalk5
+import config_manager
 from .server_handler import ServerHandler
 
 bot_instances = {}
 
 def load_server_configs():
-    filepath = 'config.ini'
+    filepath = config_manager.CONFIG_FILE
     if not os.path.exists(filepath): return []
     config = configparser.ConfigParser()
     config.read(filepath, encoding='utf-8')

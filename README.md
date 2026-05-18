@@ -29,13 +29,25 @@ Dora is a Python-based virtual assistant designed for hands-free control and int
    ```
    This will open a graphical window where you can configure your settings, server configurations, and custom commands, which will be stored in your user profile (`~/.assistantconf/`).
 
-3. **Running the Assistant:**
+## Running the Assistant and GUI
+The assistant now consists of two components: the core **Assistant** and the **User Interface (GUI)**. Because they operate in separate processes for stability, they are started independently.
+
+1. **Start the Assistant:**
+   Open a terminal and run the main assistant process:
    ```bash
    python assistant/main.py
    ```
+   This will start the listening loop and wait for voice/text commands.
+
+2. **Open the GUI (Optional):**
+   When you want to access the Translation, Media Controls, or TeamTalk monitors, open a **new** terminal window and run:
+   ```bash
+   python assistant/gui_main.py
+   ```
+   The GUI will now connect automatically to the running assistant. Use the tabs in the GUI to control music, send commands, or translate text.
 
 ## Command Reference
-You can either say these commands or type them using the `/` prefix in the terminal:
+You can say these commands or type them using the `/` prefix in the terminal. The GUI tabs can also trigger these commands for you.
 
 - `/help` or `/commands`: List all available commands.
 - `/start-server` / `/stop-server`: Manage TeamTalk monitoring.
@@ -44,13 +56,16 @@ You can either say these commands or type them using the `/` prefix in the termi
 - `/kick`: Kick a user from the channel.
 - `/timer [minutes]`: Set a timer.
 - `/stop-timer`: Stop the timer or alarm.
-- `/play` / `/next` / `/stop`: Local music control.
+- `/play` / `/next` / `/stop`: Local music control (Music is stored in `~/.assistant-music`).
 - `/add-note [note]`: Save a note to your user data folder.
 - `/list-notes`: Read your saved notes.
 - `/delete-notes`: Delete all saved notes.
-- `/open-ui`: Open the Dora Assistant GUI.
 - `/time`: Get the current time.
 - `/shutdown`: Shutdown the system.
+- `battery status` / `/battery`: Check your system battery status.
+- `ai-on` / `ai-off`: Toggle AI Chatting mode (using configured Ollama/OpenAI provider).
+- `open [appname]` / `start [appname]`: Launch applications like Chrome, Notepad, etc.
+
 
 ## Custom Commands
 You can define your own custom commands using the configuration utility:

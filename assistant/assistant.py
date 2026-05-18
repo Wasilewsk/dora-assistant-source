@@ -15,6 +15,7 @@ import language_manager as lang
 
 from skills import information, audio, system, communication, interactions, time_signal, timer, youtube_gui, custom_manager
 from skills.teamtalk_manager import manager as teamtalk_manager
+import ai_manager
 
 class Assistant:
     def __init__(self):
@@ -24,6 +25,7 @@ class Assistant:
         self.settings = config_manager.load_settings()
         self.current_lang = 'en'
         self.username = self.settings.get('username', 'User')
+        self.ai_mode = self.settings.get('ai_enabled_by_default', False)
         self.asset_manager = AssetManager('sounds.dat')
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
@@ -45,7 +47,16 @@ class Assistant:
                 'commands': self.list_commands,
                 'help': self.list_commands,
                 '/help': self.list_commands,
-                'switch language': interactions.switch_language,
+                'switch language': interactions.switch_language if hasattr(interactions, 'switch_language') else None,
+                'ai-on': interactions.toggle_ai_mode,
+                'ai-off': interactions.toggle_ai_mode,
+                'enable ai': interactions.toggle_ai_mode,
+                'disable ai': interactions.toggle_ai_mode,
+                'battery status': system.get_battery_status,
+                '/battery': system.get_battery_status,
+                'open': system.open_application,
+                'start': system.open_application,
+                'launch': system.open_application,
                 'what time is it': information.tell_time,
                 '/time': information.tell_time,
                 'time signal': time_signal.start_time_signal,
@@ -101,7 +112,7 @@ class Assistant:
     def list_commands(self, command=None):
         print("Listing available commands...")
         active_commands = self._command_map.get(self.current_lang, {})
-        command_list = list(active_commands.keys())
+        command_list = [cmd for cmd in active_commands.keys() if active_commands[cmd] is not None]
         commands_str = ", ".join(command_list)
         self.speak(self.get_response('available_commands', commands=commands_str))
 
@@ -112,7 +123,7 @@ class Assistant:
         except Exception as e: print(f"Error playing SFX: {e}")
 
     def speak(self, text, lang_code=None):
-        target_lang = lang_code or self.current_lang
+        target_lang = lang_code or self.settings.get('tts_lang', 'en')
         print(f"Dora ({target_lang}): {text}")
         
         pygame_was_playing = pygame.mixer.music.get_busy()
@@ -174,7 +185,13 @@ class Assistant:
             
         processed_command = command.replace(" ", "")
         active_commands = self._command_map.get(self.current_lang, {})
-        for keyword, func in active_commands.items():
+        
+        # Sort commands by length (descending) to match more specific commands first
+        sorted_keywords = sorted(active_commands.keys(), key=len, reverse=True)
+        
+        for keyword in sorted_keywords:
+            func = active_commands[keyword]
+            if func is None: continue
             processed_keyword = keyword.replace(" ", "")
             if processed_keyword in processed_command:
                 is_bound_method = inspect.ismethod(func)
@@ -188,6 +205,14 @@ class Assistant:
                     if expects_command: func(self, command)
                     else: func(self)
                 return
+        
+        # If no command matched and AI mode is on, use AI
+        if self.ai_mode:
+            self.speak("Thinking...")
+            response = ai_manager.get_ai_response(command, self)
+            self.speak(response)
+            return
+
         self.speak(self.get_response('unknown_command'))
 
     def _terminal_input_loop(self):
@@ -202,6 +227,22 @@ class Assistant:
             except Exception as e:
                 print(f"Terminal input error: {e}")
 
+    def _ipc_watcher(self):
+        """Monitors for commands sent via file IPC."""
+        ipc_file = os.path.join(config_manager.BASE_DATA_DIR, 'gui_cmd.txt')
+        while self.is_running:
+            if os.path.exists(ipc_file):
+                try:
+                    with open(ipc_file, 'r') as f:
+                        cmd = f.read().strip()
+                    os.remove(ipc_file)
+                    if cmd:
+                        print(f"IPC command received: {cmd}")
+                        self.process_command(cmd)
+                except Exception as e:
+                    print(f"IPC error: {e}")
+            time.sleep(0.5)
+
     def run(self):
         confirmed_username = interactions.confirm_user(self)
         if confirmed_username != self.username:
@@ -210,6 +251,9 @@ class Assistant:
 
         # Start the terminal input thread
         threading.Thread(target=self._terminal_input_loop, daemon=True).start()
+        
+        # Start IPC watcher thread
+        threading.Thread(target=self._ipc_watcher, daemon=True).start()
 
         r_wake = sr.Recognizer()
         

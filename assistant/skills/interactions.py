@@ -30,6 +30,16 @@ def confirm_user(assistant):
         else:
             assistant.speak(assistant.get_response('confirm_user_misunderstood'))
 
-def switch_language(assistant, command=None):
-    """Placeholder for language switching, now only supports English."""
-    assistant.speak("I only speak English now.")
+def toggle_ai_mode(assistant, command):
+    """Toggles the AI chatting mode."""
+    if 'ai-on' in command or 'enable' in command or 'on' in command:
+        assistant.ai_mode = True
+        assistant.speak("AI mode is now enabled. You can now chat with me normally.")
+    elif 'ai-off' in command or 'disable' in command or 'off' in command:
+        assistant.ai_mode = False
+        assistant.speak("AI mode is now disabled.")
+    else:
+        # Toggle if no specific instruction
+        assistant.ai_mode = not assistant.ai_mode
+        state = "enabled" if assistant.ai_mode else "disabled"
+        assistant.speak(f"AI mode is now {state}.")

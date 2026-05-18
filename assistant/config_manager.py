@@ -5,10 +5,11 @@ import os
 
 BASE_CONF_DIR = os.path.join(os.path.expanduser("~"), ".assistantconf")
 BASE_DATA_DIR = os.path.join(os.path.expanduser("~"), ".assistant-data")
+MUSIC_DIR = os.path.join(os.path.expanduser("~"), ".assistant-music")
 CUSTOM_CMDS_FILE = os.path.join(os.path.expanduser("~"), ".assistant-custom-commands.json")
 
 # Ensure directories exist
-for d in [BASE_CONF_DIR, BASE_DATA_DIR]:
+for d in [BASE_CONF_DIR, BASE_DATA_DIR, MUSIC_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 CONFIG_FILE = os.path.join(BASE_CONF_DIR, 'config.ini')
@@ -16,14 +17,35 @@ SETTINGS_FILE = os.path.join(BASE_CONF_DIR, 'settings.json')
 NOTES_FILE = os.path.join(BASE_DATA_DIR, 'notes.json')
 
 def load_settings():
-    """Loads user settings (language, chatbot model, username)."""
+    """Loads user settings (language, chatbot model, username, AI settings)."""
+    defaults = {
+        'last_lang': 'en',
+        'chatbot_model': 1,
+        'username': 'User',
+        'ai_provider': 'ollama',
+        'ai_endpoint': 'http://localhost:11434/v1',
+        'ai_model': 'llama3',
+        'ai_api_key': '',
+        'ai_enabled_by_default': False,
+        'tts_lang': 'en'
+    }
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                settings = json.load(f)
+                defaults.update(settings)
+                return defaults
         except Exception as e:
             print(f"Warning: Error while loading settings: {e}. Using default settings.")
-    return {'last_lang': 'en', 'chatbot_model': 1, 'username': 'User'}
+    return defaults
+
+def save_settings(settings):
+    """Saves user settings to file."""
+    try:
+        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=4)
+    except Exception as e:
+        print(f"Error saving settings: {e}")
 
 def get_notes_pin():
     settings = load_settings()

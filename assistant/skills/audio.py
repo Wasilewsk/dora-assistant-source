@@ -2,13 +2,10 @@
 import os
 import random
 import pygame
+import config_manager
 
 # --- Constants for cleaner code ---
-MUSIC_FOLDER_NAME = "music"
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# SCRIPT_DIR's parent is the 'skills' folder, its parent is the project root
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-MUSIC_FOLDER = os.path.join(PROJECT_ROOT, MUSIC_FOLDER_NAME)
+MUSIC_FOLDER = config_manager.MUSIC_DIR
 
 # --- Stop music function ---
 def stop_music(assistant, command=None):
@@ -27,7 +24,7 @@ def play_music(assistant, command=None):
     assistant.stop_all_media(command) 
     
     if not os.path.exists(MUSIC_FOLDER):
-        assistant.speak(assistant.get_response('music_folder_missing', folder=MUSIC_FOLDER_NAME))
+        assistant.speak(assistant.get_response('music_folder_missing', folder=MUSIC_FOLDER))
         return
 
     songs = [f for f in os.listdir(MUSIC_FOLDER) if f.endswith(('.mp3', '.wav'))]
