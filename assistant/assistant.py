@@ -7,13 +7,14 @@ import tempfile
 import os
 import threading
 import queue
+import json
 from gtts import gTTS
 
 from asset_manager import AssetManager
 import config_manager
 import language_manager as lang
 
-from skills import information, audio, system, communication, interactions, time_signal, timer, youtube_gui, custom_manager
+from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager
 from skills.teamtalk_manager import manager as teamtalk_manager
 import ai_manager
 
@@ -90,8 +91,6 @@ class Assistant:
                 'stop the timer': timer.stop_timer,
                 'stop the alarm': timer.stop_timer,
                 '/stop-timer': timer.stop_timer,
-                'play youtube': youtube_gui.play_youtube_video,
-                '/play-youtube': youtube_gui.play_youtube_video,
                 'add note': custom_manager.add_note,
                 '/add-note': custom_manager.add_note,
                 'list notes': custom_manager.list_notes,
@@ -124,7 +123,8 @@ class Assistant:
 
     def speak(self, text, lang_code=None):
         target_lang = lang_code or self.settings.get('tts_lang', 'en')
-        print(f"Dora ({target_lang}): {text}")
+        tts_engine = self.settings.get('tts_engine', 'google')
+        print(f"Dora ({tts_engine} - {target_lang}): {text}")
         
         pygame_was_playing = pygame.mixer.music.get_busy()
 
@@ -134,11 +134,54 @@ class Assistant:
         temp_file_path = None
         sound = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_f: temp_file_path = temp_f.name
-            tts = gTTS(text=text, lang=target_lang); tts.save(temp_file_path)
-            sound = pygame.mixer.Sound(temp_file_path); sound.play()
-            while pygame.mixer.get_busy(): pygame.time.wait(50)
-        except Exception as e: print(f"Error during gTTS/Pygame speech: {e}")
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_f: 
+                temp_file_path = temp_f.name
+            
+            if tts_engine == 'star':
+                import websockets.sync.client
+                server = self.settings.get('star_server', 'ws://localhost:7774')
+                voice = self.settings.get('star_voice', '')
+                
+                # STAR request format: {"user": 4, "request": "voice: text", "id": "custom_id"}
+                # Or just {"user": 4, "request": "voice: text"}
+                request_text = f"{voice}: {text}" if voice else text
+                
+                with websockets.sync.client.connect(server, timeout=10) as ws:
+                    ws.send(json.dumps({"user": 4, "request": request_text}))
+                    
+                    # Receive audio data
+                    # STAR sends 2 bytes length, then ID/Meta, then audio
+                    # We expect binary payloads
+                    while True:
+                        msg = ws.recv(timeout=10)
+                        if isinstance(msg, bytes):
+                            # Parse binary packet
+                            meta_len = int.from_bytes(msg[:2], "little")
+                            # We don't strictly need the meta here for single request, 
+                            # but we need to skip it to get audio
+                            audio_data = msg[meta_len+2:]
+                            
+                            with open(temp_file_path, 'wb') as f:
+                                f.write(audio_data)
+                            break
+                        else:
+                            # Might be JSON status/error
+                            data = json.loads(msg)
+                            if "error" in data:
+                                raise RuntimeError(f"STAR Error: {data['error']}")
+                            if "status" in data and "abort" in data and data["abort"]:
+                                raise RuntimeError(f"STAR Aborted: {data['status']}")
+            else:
+                # Default to Google TTS
+                tts = gTTS(text=text, lang=target_lang)
+                tts.save(temp_file_path)
+            
+            sound = pygame.mixer.Sound(temp_file_path)
+            sound.play()
+            while pygame.mixer.get_busy(): 
+                pygame.time.wait(50)
+        except Exception as e: 
+            print(f"Error during TTS playback ({tts_engine}): {e}")
         finally:
             if sound: del sound
             if temp_file_path and os.path.exists(temp_file_path):

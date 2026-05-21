@@ -268,47 +268,140 @@ class SettingsTab(wx.Panel):
         self.pin = wx.TextCtrl(self, value=settings.get('notes_pin', ''), style=wx.TE_PASSWORD)
         vbox.Add(self.pin, 0, wx.EXPAND | wx.ALL, 5)
         
-        # TTS Voice Selection
-        label_tts = wx.StaticText(self, label="Google TTS Voice (Language):")
-        vbox.Add(label_tts, 0, wx.ALL, 5)
+        # TTS Engine Selection
+        vbox.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.ALL, 10)
+        label_engine = wx.StaticText(self, label="TTS Engine:")
+        vbox.Add(label_engine, 0, wx.ALL, 5)
+        self.engine_choice = wx.Choice(self, choices=["google", "star"])
+        current_engine = settings.get('tts_engine', 'google')
+        self.engine_choice.SetStringSelection(current_engine)
+        vbox.Add(self.engine_choice, 0, wx.EXPAND | wx.ALL, 5)
+
+        # Google TTS Options
+        self.google_panel = wx.Panel(self)
+        g_vbox = wx.BoxSizer(wx.VERTICAL)
+        label_tts = wx.StaticText(self.google_panel, label="Google TTS Language:")
+        g_vbox.Add(label_tts, 0, wx.ALL, 5)
         
-        # Common TTS languages - code: display_name
-        self.tts_langs = {
-            "en": "English",
-            "es": "Spanish",
-            "fr": "French",
-            "de": "German",
-            "it": "Italian",
-            "pt": "Portuguese",
-            "ru": "Russian",
-            "ja": "Japanese",
-            "ko": "Korean",
-            "zh-CN": "Chinese (Simplified)",
-            "ar": "Arabic",
-            "hi": "Hindi"
-        }
-        
+        self.tts_langs = {"en": "English", "es": "Spanish", "fr": "French", "de": "German", "it": "Italian", "pt": "Portuguese", "ru": "Russian", "ja": "Japanese", "ko": "Korean", "zh-CN": "Chinese (Simplified)", "ar": "Arabic", "hi": "Hindi"}
         display_names = list(self.tts_langs.values())
         self.tts_codes = list(self.tts_langs.keys())
-        
-        self.tts_choice = wx.Choice(self, choices=display_names)
+        self.tts_choice = wx.Choice(self.google_panel, choices=display_names)
         current_code = settings.get('tts_lang', 'en')
         if current_code in self.tts_codes:
             self.tts_choice.SetSelection(self.tts_codes.index(current_code))
         else:
             self.tts_choice.SetSelection(0)
-            
-        vbox.Add(self.tts_choice, 0, wx.EXPAND | wx.ALL, 5)
+        g_vbox.Add(self.tts_choice, 0, wx.EXPAND | wx.ALL, 5)
+        self.google_panel.SetSizer(g_vbox)
+        vbox.Add(self.google_panel, 0, wx.EXPAND)
+
+        # STAR TTS Options
+        self.star_panel = wx.Panel(self)
+        s_vbox = wx.BoxSizer(wx.VERTICAL)
         
+        label_server = wx.StaticText(self.star_panel, label="STAR Server URL:")
+        s_vbox.Add(label_server, 0, wx.ALL, 5)
+        self.star_server = wx.TextCtrl(self.star_panel, value=settings.get('star_server', 'http://localhost:5000'))
+        s_vbox.Add(self.star_server, 0, wx.EXPAND | wx.ALL, 5)
+        
+        btn_fetch = wx.Button(self.star_panel, label="Fetch STAR Voices")
+        s_vbox.Add(btn_fetch, 0, wx.ALL, 5)
+        
+        label_voice = wx.StaticText(self.star_panel, label="STAR Voice:")
+        s_vbox.Add(label_voice, 0, wx.ALL, 5)
+        self.star_voice_choice = wx.Choice(self.star_panel, choices=[])
+        s_vbox.Add(self.star_voice_choice, 0, wx.EXPAND | wx.ALL, 5)
+        
+        self.star_panel.SetSizer(s_vbox)
+        vbox.Add(self.star_panel, 0, wx.EXPAND)
+
         self.SetSizer(vbox)
+        
+        # Bindings
         self.user.Bind(wx.EVT_TEXT, lambda e: self.settings.update({'username': self.user.GetValue()}))
         self.pin.Bind(wx.EVT_TEXT, lambda e: self.settings.update({'notes_pin': self.pin.GetValue()}))
-        self.tts_choice.Bind(wx.EVT_CHOICE, self.on_tts_change)
+        self.engine_choice.Bind(wx.EVT_CHOICE, self.on_engine_change)
+        self.tts_choice.Bind(wx.EVT_CHOICE, self.on_google_lang_change)
+        self.star_server.Bind(wx.EVT_TEXT, lambda e: self.settings.update({'star_server': self.star_server.GetValue()}))
+        btn_fetch.Bind(wx.EVT_BUTTON, self.on_fetch_voices)
+        self.star_voice_choice.Bind(wx.EVT_CHOICE, self.on_star_voice_change)
+        
+        self.toggle_panels(current_engine)
+        if current_engine == 'star':
+            # Pre-populate voice if exists
+            saved_voice = settings.get('star_voice', '')
+            if saved_voice:
+                self.star_voice_choice.Append(saved_voice)
+                self.star_voice_choice.SetSelection(0)
 
-    def on_tts_change(self, event):
-        sel_idx = self.tts_choice.GetSelection()
-        code = self.tts_codes[sel_idx]
-        self.settings['tts_lang'] = code
+    def toggle_panels(self, engine):
+        if engine == 'google':
+            self.google_panel.Show()
+            self.star_panel.Hide()
+        else:
+            self.google_panel.Hide()
+            self.star_panel.Show()
+        self.Layout()
+
+    def on_engine_change(self, event):
+        engine = self.engine_choice.GetStringSelection()
+        self.settings['tts_engine'] = engine
+        self.toggle_panels(engine)
+
+    def on_google_lang_change(self, event):
+        self.settings['tts_lang'] = self.tts_codes[self.tts_choice.GetSelection()]
+
+    def on_star_voice_change(self, event):
+        self.settings['star_voice'] = self.star_voice_choice.GetStringSelection()
+
+    def on_fetch_voices(self, event):
+        server = self.star_server.GetValue().strip()
+        if not server:
+            wx.MessageBox("Please enter a STAR server URL.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+        
+        # STAR uses WebSockets (ws:// or wss://)
+        if not server.startswith("ws"):
+            wx.MessageBox("STAR server URL must start with ws:// or wss://", "Error", wx.OK | wx.ICON_ERROR)
+            return
+
+        import websockets.sync.client
+        import json
+        try:
+            with websockets.sync.client.connect(server, timeout=5) as ws:
+                # Send user hello to get voices
+                ws.send(json.dumps({"user": 4})) # USER_REVISION = 4
+                
+                # Wait for voices message
+                # We might need to receive a few messages if there's a backlog or status
+                for _ in range(5):
+                    msg = ws.recv(timeout=2)
+                    data = json.loads(msg)
+                    if "voices" in data:
+                        voices = data["voices"]
+                        # STAR voices can be list of strings or list of dicts with 'name'
+                        voice_names = []
+                        for v in voices:
+                            if isinstance(v, dict):
+                                voice_names.append(v.get('name', ''))
+                            else:
+                                voice_names.append(str(v))
+                        
+                        self.star_voice_choice.Clear()
+                        for v in voice_names:
+                            self.star_voice_choice.Append(v)
+                        
+                        if voice_names:
+                            self.star_voice_choice.SetSelection(0)
+                            self.settings['star_voice'] = voice_names[0]
+                        
+                        wx.MessageBox(f"Successfully fetched {len(voice_names)} voices.", "Success")
+                        return
+                
+                wx.MessageBox("Could not find 'voices' in server response.", "Error", wx.OK | wx.ICON_ERROR)
+        except Exception as e:
+            wx.MessageBox(f"Failed to fetch voices: {e}", "Error", wx.OK | wx.ICON_ERROR)
 
 class CustomCmdsTab(wx.Panel):
     def __init__(self, parent, frame):

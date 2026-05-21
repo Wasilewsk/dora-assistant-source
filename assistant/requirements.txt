@@ -1,8 +1,8 @@
 pygame
 SpeechRecognition
 gTTS
-yt-dlp
-chat-downloader
+websockets
+requests
 ffpyplayer
 sounddevice
 configparser

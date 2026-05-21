@@ -27,6 +27,9 @@ def load_settings():
         'ai_model': 'llama3',
         'ai_api_key': '',
         'ai_enabled_by_default': False,
+        'tts_engine': 'google',
+        'star_server': 'http://localhost:5000',
+        'star_voice': '',
         'tts_lang': 'en'
     }
     if os.path.exists(SETTINGS_FILE):
