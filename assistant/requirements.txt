@@ -7,3 +7,9 @@ ffpyplayer
 sounddevice
 configparser
 pyperclip
+pyautogui
+Pillow
+opencv-python
+PyGithub
+psutil
+wxPython

@@ -2,7 +2,7 @@ import requests
 import json
 import config_manager
 
-def get_ai_response(prompt, assistant=None):
+def get_ai_response(prompt, assistant=None, image_b64=None):
     """Fetches a response from the configured AI provider."""
     settings = config_manager.load_settings()
     provider = settings.get('ai_provider', 'ollama').lower()
@@ -19,11 +19,18 @@ def get_ai_response(prompt, assistant=None):
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
             
+            user_content = [{"type": "text", "text": prompt}]
+            if image_b64:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{image_b64}"}
+                })
+
             payload = {
                 "model": model,
                 "messages": [
                     {"role": "system", "content": "You are Dora, a helpful and friendly virtual assistant. Keep your responses concise and suitable for text-to-speech."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_content}
                 ],
                 "temperature": 0.7
             }

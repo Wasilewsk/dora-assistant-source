@@ -64,6 +64,10 @@
         "tt_channel_is_empty": "The channel is empty.",
         "tt_disconnected_from_server": "Disconnected from the {server} server.",
         "tt_disconnected_new_active": "Disconnected. The new active server is: {server}",
-        "tt_disconnected_last_one": "Disconnected. No more active connections."
+        "tt_disconnected_last_one": "Disconnected. No more active connections.",
+        "gui_analyzing": "Let me see...",
+        "gui_action_success": "Action performed successfully.",
+        "gui_action_failed": "Sorry, I couldn't perform that action.",
+        "gui_describing": "Analyzing your screen..."
     }
 }

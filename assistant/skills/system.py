@@ -10,6 +10,7 @@ def shutdown_computer(assistant, command):
     
     if 'yes' in confirmation:
         assistant.speak(assistant.get_response('shutdown_initiated'))
+        assistant.play_sfx('shutdown.mp3')
         os.system("shutdown /s /t 10")
     else:
         assistant.speak(assistant.get_response('action_cancelled'))

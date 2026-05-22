@@ -21,12 +21,14 @@ class ConfigGUI(wx.Frame):
         self.tab_servers = ServersTab(self.notebook, self.config)
         self.tab_settings = SettingsTab(self.notebook, self.settings)
         self.tab_ai = AISettingsTab(self.notebook, self.settings)
+        self.tab_github = GitHubSettingsTab(self.notebook, self.settings)
         self.tab_cmds = CustomCmdsTab(self.notebook, self)
         
         self.notebook.AddPage(self.tab_telegram, "Telegram")
         self.notebook.AddPage(self.tab_servers, "Servers")
         self.notebook.AddPage(self.tab_settings, "Settings")
         self.notebook.AddPage(self.tab_ai, "AI Settings")
+        self.notebook.AddPage(self.tab_github, "GitHub")
         self.notebook.AddPage(self.tab_cmds, "Custom Commands")
         
         # Bottom Buttons Panel - Standard for configuration windows
@@ -268,6 +270,28 @@ class SettingsTab(wx.Panel):
         self.pin = wx.TextCtrl(self, value=settings.get('notes_pin', ''), style=wx.TE_PASSWORD)
         vbox.Add(self.pin, 0, wx.EXPAND | wx.ALL, 5)
         
+        # Soundpack Selection
+        vbox.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.ALL, 10)
+        label_sp = wx.StaticText(self, label="Assistant Soundpack:")
+        vbox.Add(label_sp, 0, wx.ALL, 5)
+        
+        sounds_dir = os.path.join(os.path.dirname(__file__), 'skills', 'teamtalk_manager', 'sounds')
+        soundpacks = ['default']
+        if os.path.exists(sounds_dir):
+            try:
+                soundpacks = [d for d in os.listdir(sounds_dir) if os.path.isdir(os.path.join(sounds_dir, d))]
+            except Exception: pass
+        if not soundpacks: soundpacks = ['default']
+        
+        self.soundpack_choice = wx.Choice(self, choices=soundpacks)
+        current_sp = settings.get('soundpack', 'default')
+        if current_sp in soundpacks:
+            self.soundpack_choice.SetStringSelection(current_sp)
+        else:
+            self.soundpack_choice.SetSelection(0)
+        vbox.Add(self.soundpack_choice, 0, wx.EXPAND | wx.ALL, 5)
+        self.soundpack_choice.Bind(wx.EVT_CHOICE, self.on_soundpack_change)
+        
         # TTS Engine Selection
         vbox.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.ALL, 10)
         label_engine = wx.StaticText(self, label="TTS Engine:")
@@ -334,6 +358,9 @@ class SettingsTab(wx.Panel):
             if saved_voice:
                 self.star_voice_choice.Append(saved_voice)
                 self.star_voice_choice.SetSelection(0)
+
+    def on_soundpack_change(self, event):
+        self.settings['soundpack'] = self.soundpack_choice.GetStringSelection()
 
     def toggle_panels(self, engine):
         if engine == 'google':
@@ -437,6 +464,33 @@ def run_gui_config():
     app = wx.App()
     ConfigGUI()
     app.MainLoop()
+
+class GitHubSettingsTab(wx.Panel):
+    def __init__(self, parent, settings):
+        super().__init__(parent)
+        self.settings = settings
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        
+        # Token
+        label_token = wx.StaticText(self, label="GitHub Personal Access Token:")
+        vbox.Add(label_token, 0, wx.ALL, 5)
+        self.token = wx.TextCtrl(self, value=settings.get('github_token', ''), style=wx.TE_PASSWORD)
+        vbox.Add(self.token, 0, wx.EXPAND | wx.ALL, 5)
+        
+        # Repo Management
+        label_repos = wx.StaticText(self, label="Monitored Repositories (username/repo, one per line):")
+        vbox.Add(label_repos, 0, wx.ALL, 5)
+        self.repos = wx.TextCtrl(self, value="\n".join(settings.get('github_repos', [])), style=wx.TE_MULTILINE, size=(-1, 100))
+        vbox.Add(self.repos, 1, wx.EXPAND | wx.ALL, 5)
+        
+        self.SetSizer(vbox)
+        
+        self.token.Bind(wx.EVT_TEXT, self.sync)
+        self.repos.Bind(wx.EVT_TEXT, self.sync)
+        
+    def sync(self, event):
+        self.settings['github_token'] = self.token.GetValue()
+        self.settings['github_repos'] = [r.strip() for r in self.repos.GetValue().split('\n') if r.strip()]
 
 if __name__ == "__main__":
     run_gui_config()

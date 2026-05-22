@@ -13,13 +13,16 @@ from gtts import gTTS
 from asset_manager import AssetManager
 import config_manager
 import language_manager as lang
-
-from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager
+from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager, gui_manager, github_monitor
 from skills.teamtalk_manager import manager as teamtalk_manager
 import ai_manager
 
 class Assistant:
     def __init__(self):
+        # ... existing init ...
+        self.github_monitor = github_monitor.GitHubMonitor(self)
+        # ...
+
         print("Initializing Dora Assistant - The Bluebird Project...")
         pygame.init()
         pygame.mixer.init()
@@ -27,6 +30,7 @@ class Assistant:
         self.current_lang = 'en'
         self.username = self.settings.get('username', 'User')
         self.ai_mode = self.settings.get('ai_enabled_by_default', False)
+        self.soundpack = self.settings.get('soundpack', 'default')
         self.asset_manager = AssetManager('sounds.dat')
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
@@ -37,6 +41,10 @@ class Assistant:
         self.active_tt_server = None
         self._command_map = self._register_commands()
         self.input_queue = queue.Queue()
+        
+        # Play startup sound
+        self.play_sfx('startup.mp3')
+        
         print("Assistant initialized.")
 
     def _register_commands(self):
@@ -99,6 +107,12 @@ class Assistant:
                 '/delete-notes': custom_manager.delete_notes,
                 'open the userinterface': self.open_ui,
                 '/open-ui': self.open_ui,
+                'describe the screen': gui_manager.describe_screen,
+                'what is on my screen': gui_manager.describe_screen,
+                'interact with the screen': gui_manager.interact_with_gui,
+                'gui action': gui_manager.interact_with_gui,
+                'start github monitor': self.github_monitor.start_monitoring,
+                'monitor github': self.github_monitor.start_monitoring,
             }
         }
 
@@ -117,9 +131,18 @@ class Assistant:
 
     def play_sfx(self, filename):
         try:
-            sfx_file_obj = self.asset_manager.get_asset_as_file_like_object(filename)
-            if sfx_file_obj: pygame.mixer.Sound(sfx_file_obj).play()
-        except Exception as e: print(f"Error playing SFX: {e}")
+            # Try to find the sound in the current soundpack first
+            sfx_name = f"{self.soundpack}/{filename}" if self.soundpack != 'default' else filename
+            sfx_file_obj = self.asset_manager.get_asset_as_file_like_object(sfx_name)
+            
+            # Fallback to the original filename if not found in pack
+            if not sfx_file_obj and self.soundpack != 'default':
+                sfx_file_obj = self.asset_manager.get_asset_as_file_like_object(filename)
+                
+            if sfx_file_obj:
+                pygame.mixer.Sound(sfx_file_obj).play()
+        except Exception as e:
+            print(f"Error playing SFX: {e}")
 
     def speak(self, text, lang_code=None):
         target_lang = lang_code or self.settings.get('tts_lang', 'en')
@@ -237,6 +260,7 @@ class Assistant:
             if func is None: continue
             processed_keyword = keyword.replace(" ", "")
             if processed_keyword in processed_command:
+                self.play_sfx('ok.mp3')
                 is_bound_method = inspect.ismethod(func)
                 func_params = inspect.signature(func).parameters
                 param_count_threshold = 1 if is_bound_method else 1 
