@@ -13,7 +13,7 @@ from gtts import gTTS
 from asset_manager import AssetManager
 import config_manager
 import language_manager as lang
-from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager, gui_manager, github_monitor
+from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager, gui_manager, github_monitor, reminders
 from skills.teamtalk_manager import manager as teamtalk_manager
 import ai_manager
 
@@ -113,6 +113,9 @@ class Assistant:
                 'gui action': gui_manager.interact_with_gui,
                 'start github monitor': self.github_monitor.start_monitoring,
                 'monitor github': self.github_monitor.start_monitoring,
+                'remind me to': reminders.add_reminder,
+                'list reminders': reminders.list_reminders,
+                'clear reminders': reminders.clear_reminders,
             }
         }
 
@@ -200,8 +203,8 @@ class Assistant:
                 tts.save(temp_file_path)
             
             sound = pygame.mixer.Sound(temp_file_path)
-            sound.play()
-            while pygame.mixer.get_busy(): 
+            channel = sound.play()
+            while channel and channel.get_busy(): 
                 pygame.time.wait(50)
         except Exception as e: 
             print(f"Error during TTS playback ({tts_engine}): {e}")
@@ -212,7 +215,7 @@ class Assistant:
                 try: os.remove(temp_file_path)
                 except PermissionError: pass
             
-            if pygame_was_playing:
+            if pygame_was_playing and pygame.mixer.music.get_busy():
                 pygame.mixer.music.unpause()
 
     def listen(self, timeout=7):
@@ -232,13 +235,25 @@ class Assistant:
     def stop_all_media(self, command=None):
         print("Stopping all playback...")
         stopped_something = False
+        
+        # Stop timer/alarm if active
+        if timer.stop_timer(self):
+            stopped_something = True
+
+        # Stop all mixer channels (including alarms on dedicated channels)
+        pygame.mixer.stop()
+
         if pygame.mixer.music.get_busy():
             pygame.mixer.music.stop()
             self.current_playlist = []
             self.current_song_index = -1
             stopped_something = True
+        
         if stopped_something:
-            self.speak(self.get_response('playback_stopped'))
+            # We don't speak if timer.stop_timer already spoke or if it was an alarm
+            # But let's give a general confirmation if music was stopped
+            if not timer.is_alarm_active():
+                self.speak(self.get_response('playback_stopped'))
             
     def process_command(self, command):
         if not command: return
@@ -321,6 +336,9 @@ class Assistant:
         
         # Start IPC watcher thread
         threading.Thread(target=self._ipc_watcher, daemon=True).start()
+
+        # Start reminders check thread
+        threading.Thread(target=reminders.check_reminders, args=(self,), daemon=True).start()
 
         r_wake = sr.Recognizer()
         
