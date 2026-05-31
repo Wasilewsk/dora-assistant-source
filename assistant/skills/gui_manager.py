@@ -1,7 +1,6 @@
 import pyautogui
 import os
 import base64
-from PIL import Image
 import io
 
 def take_screenshot(assistant, filename="screenshot.png"):

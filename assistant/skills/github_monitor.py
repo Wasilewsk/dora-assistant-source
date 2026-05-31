@@ -1,6 +1,7 @@
 from github import Github
 import threading
 import time
+import datetime
 import config_manager
 import os
 
@@ -35,7 +36,7 @@ class GitHubMonitor:
                 try:
                     repo = self.github_client.get_repo(repo_name)
                     # Check for recent commits
-                    commits = repo.get_commits(since=time.gmtime(self.last_check_time))
+                    commits = repo.get_commits(since=datetime.datetime.fromtimestamp(self.last_check_time))
                     if commits.totalCount > 0:
                         self.assistant.speak(f"New activity in {repo_name}: {commits.totalCount} new commits.")
                 except Exception as e:

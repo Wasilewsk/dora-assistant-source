@@ -36,11 +36,12 @@ class ServerHandler(TeamTalk5.TeamTalk):
         text_to_speak = self.assistant.get_response(response_key, **kwargs)
         if self.config.get('speech', 'true').lower() == 'true':
             self.assistant.speak(text_to_speak)
-        if self.config.get('log', 'true').lower() == 'true':
+        if self.config.get('log', 'false').lower() == 'true':
             log_dir = "logs"
             if not os.path.exists(log_dir): os.makedirs(log_dir)
             with open(os.path.join(log_dir, f"{self.config['server_name']}.log"), 'a', encoding='utf-8') as f:
                 f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {text_to_speak}\n")
+        self.assistant.notify_telegram(f"[{self.config['server_name']}] {text_to_speak}")
     
     def onConnectSuccess(self):
         self._output("tt_connected")

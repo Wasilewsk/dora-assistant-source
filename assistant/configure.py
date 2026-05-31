@@ -17,7 +17,7 @@ class ConfigGUI(wx.Frame):
         self.notebook = wx.Notebook(main_panel)
         
         # Add Tabs
-        self.tab_telegram = TelegramTab(self.notebook, self.config)
+        self.tab_telegram = TelegramTab(self.notebook, self.settings)
         self.tab_servers = ServersTab(self.notebook, self.config)
         self.tab_settings = SettingsTab(self.notebook, self.settings)
         self.tab_ai = AISettingsTab(self.notebook, self.settings)
@@ -139,24 +139,46 @@ class AddServerDialog(wx.Dialog):
         return data
 
 class TelegramTab(wx.Panel):
-    def __init__(self, parent, config):
+    def __init__(self, parent, settings):
         super().__init__(parent)
-        self.config = config
+        self.settings = settings
         vbox = wx.BoxSizer(wx.VERTICAL)
-        
-        label = wx.StaticText(self, label="Telegram Bot Token:")
-        vbox.Add(label, 0, wx.ALL, 5)
-        self.token = wx.TextCtrl(self, value=config.get('Telegram', 'token', fallback=''))
+
+        label_token = wx.StaticText(self, label="Telegram Bot Token:")
+        vbox.Add(label_token, 0, wx.ALL, 5)
+        self.token = wx.TextCtrl(self, value=settings.get('telegram_token', ''))
         self.token.SetName("Bot Token Input")
         vbox.Add(self.token, 0, wx.EXPAND | wx.ALL, 5)
-        
-        self.SetSizer(vbox)
-        self.token.Bind(wx.EVT_TEXT, self.on_change)
 
-    def on_change(self, event):
-        if 'Telegram' not in self.config:
-            self.config.add_section('Telegram')
-        self.config.set('Telegram', 'token', self.token.GetValue())
+        # Instructions for getting Chat ID
+        instructions = (
+            "To get your Chat ID:\n"
+            "1. Send a message to your bot on Telegram/Unigram\n"
+            "2. Visit: https://api.telegram.org/bot<YourToken>/getUpdates\n"
+            "3. Look for \"chat\":{\"id\": YOUR_CHAT_ID in the response"
+        )
+        label_chat = wx.StaticText(self, label="Telegram Chat ID:")
+        vbox.Add(label_chat, 0, wx.ALL, 5)
+        self.chat_id = wx.TextCtrl(self, value=settings.get('telegram_chat_id', ''))
+        self.chat_id.SetName("Chat ID Input")
+        vbox.Add(self.chat_id, 0, wx.EXPAND | wx.ALL, 5)
+
+        info = wx.StaticText(self, label=instructions, style=wx.ST_NO_AUTORESIZE)
+        info.SetForegroundColour(wx.Colour(100, 100, 100))
+        vbox.Add(info, 0, wx.ALL, 5)
+
+        # Unigram note
+        unigram_note = wx.StaticText(self, label="Note: Unigram users can also find the Chat ID in Unigram settings under your profile.")
+        unigram_note.SetForegroundColour(wx.Colour(80, 80, 180))
+        vbox.Add(unigram_note, 0, wx.ALL, 5)
+
+        self.SetSizer(vbox)
+        self.token.Bind(wx.EVT_TEXT, self.sync)
+        self.chat_id.Bind(wx.EVT_TEXT, self.sync)
+
+    def sync(self, event):
+        self.settings['telegram_token'] = self.token.GetValue()
+        self.settings['telegram_chat_id'] = self.chat_id.GetValue()
 
 class AISettingsTab(wx.Panel):
     def __init__(self, parent, settings):
@@ -326,7 +348,7 @@ class SettingsTab(wx.Panel):
         
         label_server = wx.StaticText(self.star_panel, label="STAR Server URL:")
         s_vbox.Add(label_server, 0, wx.ALL, 5)
-        self.star_server = wx.TextCtrl(self.star_panel, value=settings.get('star_server', 'http://localhost:5000'))
+        self.star_server = wx.TextCtrl(self.star_panel, value=settings.get('star_server', 'ws://localhost:7774'))
         s_vbox.Add(self.star_server, 0, wx.EXPAND | wx.ALL, 5)
         
         btn_fetch = wx.Button(self.star_panel, label="Fetch STAR Voices")

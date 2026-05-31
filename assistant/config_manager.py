@@ -6,10 +6,11 @@ import os
 BASE_CONF_DIR = os.path.join(os.path.expanduser("~"), ".assistantconf")
 BASE_DATA_DIR = os.path.join(os.path.expanduser("~"), ".assistant-data")
 MUSIC_DIR = os.path.join(os.path.expanduser("~"), ".assistant-music")
+SKILLS_DIR = os.path.join(os.path.expanduser("~"), ".assistant-skills")
 CUSTOM_CMDS_FILE = os.path.join(os.path.expanduser("~"), ".assistant-custom-commands.json")
 
 # Ensure directories exist
-for d in [BASE_CONF_DIR, BASE_DATA_DIR, MUSIC_DIR]:
+for d in [BASE_CONF_DIR, BASE_DATA_DIR, MUSIC_DIR, SKILLS_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 CONFIG_FILE = os.path.join(BASE_CONF_DIR, 'config.ini')
@@ -29,9 +30,11 @@ def load_settings():
         'ai_enabled_by_default': False,
         'soundpack': 'default',
         'tts_engine': 'google',
-        'star_server': 'http://localhost:5000',
+        'star_server': 'ws://localhost:7774',
         'star_voice': '',
-        'tts_lang': 'en'
+        'tts_lang': 'en',
+        'telegram_token': '',
+        'telegram_chat_id': ''
     }
     if os.path.exists(SETTINGS_FILE):
         try:

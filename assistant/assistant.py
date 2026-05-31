@@ -13,8 +13,10 @@ from gtts import gTTS
 from asset_manager import AssetManager
 import config_manager
 import language_manager as lang
-from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager, gui_manager, github_monitor, reminders
+from skills import information, audio, system, communication, interactions, time_signal, timer, custom_manager, gui_manager, github_monitor, reminders, telegram_bot
 from skills.teamtalk_manager import manager as teamtalk_manager
+from skills.skill_api import SKILLS_DIR
+import skill_loader
 import ai_manager
 
 class Assistant:
@@ -30,6 +32,9 @@ class Assistant:
         self.current_lang = 'en'
         self.username = self.settings.get('username', 'User')
         self.ai_mode = self.settings.get('ai_enabled_by_default', False)
+        self.chatbot_model = self.settings.get('chatbot_model', 1)
+        self.telegram_token = self.settings.get('telegram_token', '')
+        self.telegram_chat_id = self.settings.get('telegram_chat_id', '')
         self.soundpack = self.settings.get('soundpack', 'default')
         self.asset_manager = AssetManager('sounds.dat')
         self.recognizer = sr.Recognizer()
@@ -39,9 +44,13 @@ class Assistant:
         self.current_playlist = []
         self.current_song_index = -1
         self.active_tt_server = None
+        self._telegram_chat_id = None
         self._command_map = self._register_commands()
         self.input_queue = queue.Queue()
         
+        # Load external third-party skills
+        skill_loader.load_skills(self)
+
         # Play startup sound
         self.play_sfx('startup.mp3')
         
@@ -53,10 +62,12 @@ class Assistant:
                 'shut down': system.shutdown_computer,
                 'turn off': system.shutdown_computer,
                 '/shutdown': system.shutdown_computer,
+                'restart': system.restart_computer,
+                'reboot': system.restart_computer,
+                '/restart': system.restart_computer,
                 'commands': self.list_commands,
                 'help': self.list_commands,
                 '/help': self.list_commands,
-                'switch language': interactions.switch_language if hasattr(interactions, 'switch_language') else None,
                 'ai-on': interactions.toggle_ai_mode,
                 'ai-off': interactions.toggle_ai_mode,
                 'enable ai': interactions.toggle_ai_mode,
@@ -116,6 +127,8 @@ class Assistant:
                 'remind me to': reminders.add_reminder,
                 'list reminders': reminders.list_reminders,
                 'clear reminders': reminders.clear_reminders,
+                'send notification': communication.send_telegram_message,
+                'send notification that': communication.send_telegram_message,
             }
         }
 
@@ -124,6 +137,11 @@ class Assistant:
         threading.Thread(target=gui_main.launch_ui, args=(self,), daemon=True).start()
         self.speak("Opening the user interface.")
 
+    def notify_telegram(self, text):
+        if self.telegram_token and self.telegram_chat_id:
+            from skills.communication import _send_raw_telegram
+            threading.Thread(target=_send_raw_telegram, args=(self.telegram_token, self.telegram_chat_id, text), daemon=True).start()
+
 
     def list_commands(self, command=None):
         print("Listing available commands...")
@@ -131,6 +149,17 @@ class Assistant:
         command_list = [cmd for cmd in active_commands.keys() if active_commands[cmd] is not None]
         commands_str = ", ".join(command_list)
         self.speak(self.get_response('available_commands', commands=commands_str))
+
+    def register_command(self, trigger, handler, lang='en'):
+        """Register a new command. Used by third-party skills."""
+        if lang not in self._command_map:
+            self._command_map[lang] = {}
+        self._command_map[lang][trigger] = handler
+
+    def unregister_command(self, trigger, lang='en'):
+        """Remove a registered command."""
+        if lang in self._command_map and trigger in self._command_map[lang]:
+            del self._command_map[lang][trigger]
 
     def play_sfx(self, filename):
         try:
@@ -148,6 +177,9 @@ class Assistant:
             print(f"Error playing SFX: {e}")
 
     def speak(self, text, lang_code=None):
+        if self._telegram_chat_id:
+            from skills.communication import _send_raw_telegram
+            threading.Thread(target=_send_raw_telegram, args=(self.telegram_token, self._telegram_chat_id, text), daemon=True).start()
         target_lang = lang_code or self.settings.get('tts_lang', 'en')
         tts_engine = self.settings.get('tts_engine', 'google')
         print(f"Dora ({tts_engine} - {target_lang}): {text}")
@@ -215,7 +247,7 @@ class Assistant:
                 try: os.remove(temp_file_path)
                 except PermissionError: pass
             
-            if pygame_was_playing and pygame.mixer.music.get_busy():
+            if pygame_was_playing:
                 pygame.mixer.music.unpause()
 
     def listen(self, timeout=7):
@@ -290,6 +322,10 @@ class Assistant:
         
         # If no command matched and AI mode is on, use AI
         if self.ai_mode:
+            create_phrases = ['make a command', 'create command', 'add command', 'new command', 'create a command', 'make command', 'add a command']
+            if any(phrase in command.lower() for phrase in create_phrases):
+                custom_manager.create_command_ai(self, command)
+                return
             self.speak("Thinking...")
             response = ai_manager.get_ai_response(command, self)
             self.speak(response)
@@ -339,6 +375,10 @@ class Assistant:
 
         # Start reminders check thread
         threading.Thread(target=reminders.check_reminders, args=(self,), daemon=True).start()
+
+        # Start Telegram polling if token is configured
+        if self.telegram_token:
+            telegram_bot.start_polling(self)
 
         r_wake = sr.Recognizer()
         

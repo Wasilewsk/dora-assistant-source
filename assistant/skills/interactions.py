@@ -1,5 +1,4 @@
 # skills/interactions.py
-import config_manager
 
 def confirm_user(assistant):
     """Identifies or registers the user upon startup."""
